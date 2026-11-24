@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/dashboard.tsx","./src/components/editmodal.tsx","./src/components/recorder.tsx","./src/components/transcriptioncard.tsx","./src/hooks/usetranscriber.ts","./src/lib/api.ts","./src/lib/format.ts","./src/lib/types.ts","./vite.config.ts"],"version":"5.6.3"}

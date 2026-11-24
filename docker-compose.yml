@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: transcriptions
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d transcriptions"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        WHISPER_MODEL: ${WHISPER_MODEL:-small}
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/transcriptions
+      STT_ENGINE: ${STT_ENGINE:-whisper}
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Keeps the downloaded model weights across container rebuilds.
+      - models:/models
+
+volumes:
+  pgdata:
+  models:
