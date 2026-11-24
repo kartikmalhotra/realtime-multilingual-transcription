@@ -26,7 +26,7 @@ services:
 databases:
   - name: transcription-db
     databaseName: transcriptions
-    user: postgres
+    user: transcription_app
     plan: free
 
 # ---------------------------------------------------------------------
@@ -36,8 +36,9 @@ databases:
 # 2. Set     STT_ENGINE   = whisper
 #            WHISPER_MODEL = small
 # 3. Add the environment variable PREFETCH_MODEL = true (Render passes it
-#    to the Docker build) so the weights are baked into the image; otherwise the first request downloads ~500 MB and times out
-#    against the health check.
+#    to the Docker build) so the weights are baked into the image;
+#    otherwise the first request downloads ~500 MB and times out against
+#    the health check.
 #
 # Note that CPU-only instances run `small`, which transliterates English
 # into Devanagari on mixed speech. large-v3-turbo keeps both scripts but
