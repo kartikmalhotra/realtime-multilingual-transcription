@@ -5,7 +5,7 @@ A "Speech to Text" web app that transcribes speech **as you talk**, handles
 transcript in a relational database, and exposes the history in a dashboard
 with full CRUD.
 
-Built for the Procucev Full Stack Generative AI Engineer assignment.
+Built for the Procucev engineering hiring assignment.
 
 > **Stack:** FastAPI (Python) · React + TypeScript · PostgreSQL ·
 > faster-whisper (self-hosted, open source)
