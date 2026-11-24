@@ -1,25 +1,25 @@
 # Render blueprint.
 #
-# Defaults to a configuration that actually runs on a small instance: the
-# browser Web Speech engine, which needs no model in memory. Self-hosted
-# Whisper is the better demo but needs real RAM - see "Running Whisper"
-# below before switching, because `small` alone is ~1.2 GB and will OOM a
-# 512 MB instance on the first utterance.
+# Runs on Render's free plans: speech-to-text uses the Gemini Live API (the
+# service named in the brief), so no model has to fit in the instance's
+# 512 MB. Set GEMINI_API_KEY in the dashboard when the blueprint asks for it.
+# Self-hosted Whisper needs real RAM - see "Running Whisper" below, because
+# `small` alone is ~1.2 GB and will OOM a 512 MB instance.
 services:
   - type: web
     name: realtime-transcription
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     dockerBuildArgs:
-      # Nothing to pre-download when recognition happens in the browser;
-      # skipping it keeps the image ~500 MB smaller and the build quick.
+      # No Whisper weights needed when Gemini does the recognition;
+      # skipping them keeps the image ~500 MB smaller and the build quick.
       PREFETCH_MODEL: "false"
     envVars:
       - key: STT_ENGINE
-        value: browser
+        value: gemini
       - key: DATABASE_URL
         fromDatabase:
           name: transcription-db
@@ -31,7 +31,7 @@ databases:
   - name: transcription-db
     databaseName: transcriptions
     user: postgres
-    plan: basic-256mb
+    plan: free
 
 # ---------------------------------------------------------------------
 # Running Whisper (the self-hosted open-source engine) instead

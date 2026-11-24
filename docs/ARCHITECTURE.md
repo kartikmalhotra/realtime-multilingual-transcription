@@ -152,6 +152,54 @@ rolled up to `mixed` on the parent record when more than one appears, so the
 dashboard can show that a recording was genuinely bilingual rather than
 picking a winner.
 
+### Gemini Live, and three things that make it fail silently
+
+The brief names "gemini live 3.1", so the `gemini` engine targets
+`gemini-3.1-flash-live-preview`. Getting it working needed three
+non-obvious fixes, each of which fails in a way that looks like something
+else:
+
+1. **The Live endpoint is not on the default API version.** Constructing the
+   client without `http_options={"api_version": "v1beta"}` makes the
+   WebSocket handshake fail with a bare `HTTP 404`, which reads like a wrong
+   model name. The model is fine; the route is not there on the default
+   version.
+2. **The transcript is not the model's reply.** A Live model answers with
+   *audio*. Asking it for `response_modalities: ["TEXT"]` is rejected
+   outright (error 1007). The transcript comes from
+   `input_audio_transcription` - the server-side transcription of the audio
+   that was *sent in* - and the spoken reply is discarded.
+3. **`turn_complete` never arrives while the model is still speaking.**
+   Looping until it appears hangs until the timeout, after the transcript
+   has already been delivered. The read loop therefore stops once the
+   transcript stops growing.
+
+There is also a fourth, which cost the most time: **sending the utterance as
+one large blob returns no transcription at all.** The endpoint expects a
+stream, so the engine feeds it 100 ms chunks exactly as the browser would.
+With one blob the session simply goes quiet and times out - no error, no
+partial result.
+
+Measured once working, on the same clips as the Whisper table above:
+
+| Clip | Latency | Real-time factor | Output |
+|---|---|---|---|
+| Hindi + English (one voice) | 3.19 s / 5.01 s | **0.64** | English transliterated into Devanagari |
+| English -> Hindi (two voices) | 3.67 s / 6.75 s | **0.54** | Both halves kept, each in its own script |
+
+So Gemini Live is comfortably real-time and, unlike `small`, does not drop
+the second language at a switch - but it still transliterates English on
+Hindi-dominant audio. It sits between `small` and `large-v3-turbo` on
+quality, and it needs no RAM on the host, which is what makes a free-tier
+deployment viable.
+
+One caveat worth stating plainly: the same key's non-Live models were not a
+usable substitute. `generateContent` with inline audio ran at roughly
+0.7x real time on `gemini-2.5-flash`, but three identical runs of the same
+clip returned three different scripts (Devanagari, romanised, and correctly
+mixed). Larger models were consistent but took 33-41 s for five seconds of
+audio. Live is the only Gemini path here that is both fast and stable.
+
 ### Known residual weakness
 
 Interim results are produced by re-transcribing a growing buffer, so the

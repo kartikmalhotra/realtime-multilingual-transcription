@@ -72,7 +72,7 @@ Set `STT_ENGINE` in `backend/.env`, or pick it from the dropdown in the UI
 |---|---|---|
 | `whisper` **(default)** | faster-whisper / CTranslate2, running on your own server. Open source, offline. | The real answer to the brief. Needs ~1–2 GB RAM for `small`. |
 | `browser` | The browser's own Web Speech API. Recognition happens client-side; the server only persists the text. | Free-tier hosting that cannot hold a model in memory. Keeps the deployed demo usable. |
-| `gemini` | Gemini Live API, as named in the brief. Needs `GEMINI_API_KEY`. | Best code-switching quality, but not self-hosted and not open source. |
+| `gemini` | Gemini Live API (`gemini-3.1-flash-live-preview`), as named in the brief. Needs `GEMINI_API_KEY`. | Real-time (rtf ~0.6) and needs no RAM on the host, so it is what makes a free-tier deploy work. Not self-hosted and not open source. |
 
 ### Model size (`WHISPER_MODEL`, default `auto`)
 
@@ -256,7 +256,9 @@ so the provider's variable works untouched.
   weight and works offline on the client. Swapping in Piper behind a
   `/api/tts` endpoint would satisfy the preference and is the obvious next
   step if it matters.
-- The Gemini engine is wired to the same interface but is off by default and
-  **untested** — I had no API key to verify it against.
+- The Gemini engine needs an API key whose project has **Live** access.
+  Without it the handshake returns a bare `HTTP 404`; the same key's
+  non-Live models are not a usable substitute (three identical runs of one
+  clip returned three different scripts). See docs/ARCHITECTURE.md.
 - No authentication — every visitor shares one transcript history. A real
   deployment would scope records to a user.

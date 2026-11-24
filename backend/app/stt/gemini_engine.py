@@ -56,7 +56,10 @@ class GeminiLiveEngine:
             raise EngineUnavailable(
                 "google-genai is not installed. Install with: pip install google-genai"
             ) from exc
-        self._client = genai.Client(api_key=settings.gemini_api_key)
+        self._client = genai.Client(
+            api_key=settings.gemini_api_key,
+            http_options={"api_version": settings.gemini_api_version},
+        )
         return self._client
 
     async def _transcribe_async(
@@ -65,37 +68,51 @@ class GeminiLiveEngine:
         client = self._get_client()
         from google.genai import types
 
-        hint = (
-            "Transcribe the speech verbatim. It may mix Hindi and English; "
-            "keep each word in the language it was spoken in. "
-            "Reply with the transcript only."
-        )
-        if language and language not in ("auto", "mixed", "unknown"):
-            hint += f" The primary language is '{language}'."
-
+        # Live models reply with audio only, so the transcript is not the
+        # model's answer: it is the server-side transcription of the audio we
+        # send in (input_audio_transcription). The spoken reply is ignored.
         config = {
-            "response_modalities": ["TEXT"],
-            "system_instruction": hint,
+            "response_modalities": ["AUDIO"],
+            "input_audio_transcription": {},
         }
 
         chunks: list[str] = []
-        async with client.aio.live.connect(
-            model=settings.gemini_model, config=config
-        ) as session:
-            await session.send_realtime_input(
-                audio=types.Blob(
-                    data=_to_pcm16_bytes(audio),
-                    mime_type=f"audio/pcm;rate={settings.sample_rate}",
-                )
-            )
-            await session.send_realtime_input(audio_stream_end=True)
-            async for response in session.receive():
-                if response.text:
-                    chunks.append(response.text)
-                if getattr(response, "server_content", None) and getattr(
-                    response.server_content, "turn_complete", False
-                ):
-                    break
+
+        async def _run() -> None:
+            async with client.aio.live.connect(
+                model=settings.gemini_model, config=config
+            ) as session:
+                # The Live endpoint expects a stream, not one large blob:
+                # sending the whole utterance at once yields no transcription
+                # at all. Feed it in realtime-sized chunks instead.
+                data = _to_pcm16_bytes(audio)
+                chunk = settings.sample_rate * 2 // 10  # 100 ms of int16 PCM
+                mime = f"audio/pcm;rate={settings.sample_rate}"
+                for offset in range(0, len(data), chunk):
+                    await session.send_realtime_input(
+                        audio=types.Blob(data=data[offset : offset + chunk], mime_type=mime)
+                    )
+                await session.send_realtime_input(audio_stream_end=True)
+                # `turn_complete` does not arrive while the model is still
+                # speaking its reply, so waiting for it hangs until the
+                # timeout. Stop once the transcript has stopped growing.
+                quiet = 0
+                async for response in session.receive():
+                    content = getattr(response, "server_content", None)
+                    if content is None:
+                        continue
+                    transcription = getattr(content, "input_transcription", None)
+                    if transcription is not None and transcription.text:
+                        chunks.append(transcription.text)
+                        quiet = 0
+                    elif chunks:
+                        quiet += 1
+                        if quiet >= settings.gemini_quiet_events:
+                            break
+                    if getattr(content, "turn_complete", False):
+                        break
+
+        await asyncio.wait_for(_run(), timeout=settings.gemini_timeout_s)
 
         text = "".join(chunks).strip()
         duration_ms = int(len(audio) / settings.sample_rate * 1000)

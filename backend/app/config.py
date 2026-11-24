@@ -38,7 +38,15 @@ class Settings(BaseSettings):
     whisper_initial_prompt: str = ""
 
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-live-2.5-flash-preview"
+    # Free-tier Live model on the Gemini Developer API ("Gemini Live 3.1").
+    gemini_model: str = "gemini-3.1-flash-live-preview"
+    gemini_timeout_s: float = 20.0
+    # The Live endpoint is not served on the default API version; without
+    # this the WebSocket handshake fails with a bare HTTP 404.
+    gemini_api_version: str = "v1beta"
+    # The model keeps streaming its spoken reply after the transcript is
+    # complete, so the read loop stops once the transcript stops growing.
+    gemini_quiet_events: int = 4
 
     # --- streaming tuning ----------------------------------------------
     sample_rate: int = 16_000
