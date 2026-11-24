@@ -1,5 +1,10 @@
-# One-click deploy on Render (free tier works with STT_ENGINE=browser;
-# Whisper needs a paid instance with >= 2 GB RAM).
+# Render blueprint.
+#
+# Defaults to a configuration that actually runs on a small instance: the
+# browser Web Speech engine, which needs no model in memory. Self-hosted
+# Whisper is the better demo but needs real RAM - see "Running Whisper"
+# below before switching, because `small` alone is ~1.2 GB and will OOM a
+# 512 MB instance on the first utterance.
 services:
   - type: web
     name: realtime-transcription
@@ -8,11 +13,13 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /api/health
+    dockerBuildArgs:
+      # Nothing to pre-download when recognition happens in the browser;
+      # skipping it keeps the image ~500 MB smaller and the build quick.
+      PREFETCH_MODEL: "false"
     envVars:
       - key: STT_ENGINE
-        value: whisper
-      - key: WHISPER_MODEL
-        value: small
+        value: browser
       - key: DATABASE_URL
         fromDatabase:
           name: transcription-db
@@ -25,3 +32,17 @@ databases:
     databaseName: transcriptions
     user: postgres
     plan: basic-256mb
+
+# ---------------------------------------------------------------------
+# Running Whisper (the self-hosted open-source engine) instead
+# ---------------------------------------------------------------------
+# 1. Move the web service to a plan with >= 2 GB RAM (standard or above).
+# 2. Set     STT_ENGINE   = whisper
+#            WHISPER_MODEL = small
+# 3. Set the build arg PREFETCH_MODEL = true so the weights are baked into
+#    the image; otherwise the first request downloads ~500 MB and times out
+#    against the health check.
+#
+# Note that CPU-only instances run `small`, which transliterates English
+# into Devanagari on mixed speech. large-v3-turbo keeps both scripts but
+# needs a GPU to stay ahead of real time. See docs/ARCHITECTURE.md.

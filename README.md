@@ -206,8 +206,30 @@ docker build -f backend/Dockerfile -t transcription .
 docker run -p 8000:8000 -e DATABASE_URL=<postgres-url> transcription
 ```
 
-`render.yaml` is included for a one-click Render deploy. On a free or
-small instance, set `STT_ENGINE=browser`; Whisper needs roughly 2 GB RAM.
+### Render
+
+`render.yaml` is a blueprint: in the Render dashboard choose **New →
+Blueprint**, point it at this repo, and it provisions the web service and a
+PostgreSQL instance together.
+
+It intentionally defaults to `STT_ENGINE=browser`. Recognition then happens
+in the browser and the server only persists text, so the instance needs no
+model in memory and the image skips the ~500 MB weight download
+(`PREFETCH_MODEL=false`). This is the configuration that actually stays up
+on a small instance.
+
+To run the self-hosted Whisper engine instead:
+
+1. move the web service to a plan with **>= 2 GB RAM** - `small` alone is
+   ~1.2 GB and will OOM a 512 MB instance on the first utterance;
+2. set `STT_ENGINE=whisper` and `WHISPER_MODEL=small`;
+3. set the build arg `PREFETCH_MODEL=true`, so the weights are baked into
+   the image rather than downloaded on the first request, which would
+   otherwise time out against the health check.
+
+Render injects `DATABASE_URL` as `postgres://...`, a scheme SQLAlchemy 2.0
+no longer loads. The app rewrites it to `postgresql+psycopg://` on startup,
+so the provider's variable works untouched.
 
 ---
 

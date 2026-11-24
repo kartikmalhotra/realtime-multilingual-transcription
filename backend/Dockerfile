@@ -30,12 +30,17 @@ COPY --from=frontend /ui/dist ./static
 # Containers here have no accelerator, so `auto` resolves to `small`; baking
 # in large-v3-turbo would add ~1.6 GB for a model too slow to stream on CPU.
 ARG WHISPER_MODEL=small
+ARG PREFETCH_MODEL=true
 ENV WHISPER_MODEL=${WHISPER_MODEL}
-RUN python -c "\
+RUN if [ "$PREFETCH_MODEL" = "true" ]; then \
+      python -c "\
 import os; from faster_whisper import WhisperModel; \
 name = os.environ['WHISPER_MODEL']; \
 name = 'small' if name == 'auto' else name; \
-WhisperModel(name, device='cpu', compute_type='int8')"
+WhisperModel(name, device='cpu', compute_type='int8')"; \
+    else \
+      echo "skipping model prefetch (PREFETCH_MODEL=$PREFETCH_MODEL)"; \
+    fi
 
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

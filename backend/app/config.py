@@ -2,6 +2,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +49,22 @@ class Settings(BaseSettings):
 
     # --- http -----------------------------------------------------------
     cors_origins: str = "*"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalise_database_url(cls, value: str) -> str:
+        """Accept the URL shapes hosting providers actually hand out.
+
+        Render, Heroku and Fly all inject `postgres://...`, a scheme
+        SQLAlchemy 2.0 removed - it raises NoSuchModuleError on boot rather
+        than falling back. Rewriting it here means the deployed app works
+        with the provider's variable untouched.
+        """
+        if value.startswith("postgres://"):
+            return "postgresql+psycopg://" + value[len("postgres://") :]
+        if value.startswith("postgresql://"):
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
 
     @property
     def cors_origin_list(self) -> list[str]:
