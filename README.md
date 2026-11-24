@@ -212,18 +212,19 @@ docker run -p 8000:8000 -e DATABASE_URL=<postgres-url> transcription
 Blueprint**, point it at this repo, and it provisions the web service and a
 PostgreSQL instance together.
 
-It intentionally defaults to `STT_ENGINE=browser`. Recognition then happens
-in the browser and the server only persists text, so the instance needs no
-model in memory and the image skips the ~500 MB weight download
-(`PREFETCH_MODEL=false`). This is the configuration that actually stays up
-on a small instance.
+It runs on Render's free plans with `STT_ENGINE=gemini`: recognition happens
+in the Gemini Live API, so the 512 MB instance needs no model in memory and
+the image skips the ~500 MB weight download (`PREFETCH_MODEL` defaults to
+false in the Dockerfile). Paste your `GEMINI_API_KEY` when the dashboard
+asks for it.
 
 To run the self-hosted Whisper engine instead:
 
 1. move the web service to a plan with **>= 2 GB RAM** - `small` alone is
    ~1.2 GB and will OOM a 512 MB instance on the first utterance;
 2. set `STT_ENGINE=whisper` and `WHISPER_MODEL=small`;
-3. set the build arg `PREFETCH_MODEL=true`, so the weights are baked into
+3. add the environment variable `PREFETCH_MODEL=true` (Render passes it to
+   the Docker build), so the weights are baked into
    the image rather than downloaded on the first request, which would
    otherwise time out against the health check.
 

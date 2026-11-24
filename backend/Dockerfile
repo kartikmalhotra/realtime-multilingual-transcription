@@ -30,7 +30,10 @@ COPY --from=frontend /ui/dist ./static
 # Containers here have no accelerator, so `auto` resolves to `small`; baking
 # in large-v3-turbo would add ~1.6 GB for a model too slow to stream on CPU.
 ARG WHISPER_MODEL=small
-ARG PREFETCH_MODEL=true
+# Off by default so the image builds small on hosts that use a remote STT
+# engine (Render passes environment variables in as build args);
+# docker-compose turns it on for the self-hosted Whisper setup.
+ARG PREFETCH_MODEL=false
 ENV WHISPER_MODEL=${WHISPER_MODEL}
 RUN if [ "$PREFETCH_MODEL" = "true" ]; then \
       python -c "\

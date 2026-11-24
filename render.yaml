@@ -13,10 +13,6 @@ services:
     dockerContext: .
     plan: free
     healthCheckPath: /api/health
-    dockerBuildArgs:
-      # No Whisper weights needed when Gemini does the recognition;
-      # skipping them keeps the image ~500 MB smaller and the build quick.
-      PREFETCH_MODEL: "false"
     envVars:
       - key: STT_ENGINE
         value: gemini
@@ -39,8 +35,8 @@ databases:
 # 1. Move the web service to a plan with >= 2 GB RAM (standard or above).
 # 2. Set     STT_ENGINE   = whisper
 #            WHISPER_MODEL = small
-# 3. Set the build arg PREFETCH_MODEL = true so the weights are baked into
-#    the image; otherwise the first request downloads ~500 MB and times out
+# 3. Add the environment variable PREFETCH_MODEL = true (Render passes it
+#    to the Docker build) so the weights are baked into the image; otherwise the first request downloads ~500 MB and times out
 #    against the health check.
 #
 # Note that CPU-only instances run `small`, which transliterates English

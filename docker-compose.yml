@@ -21,6 +21,7 @@ services:
       dockerfile: backend/Dockerfile
       args:
         WHISPER_MODEL: ${WHISPER_MODEL:-small}
+        PREFETCH_MODEL: "true"
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/transcriptions
       STT_ENGINE: ${STT_ENGINE:-whisper}
